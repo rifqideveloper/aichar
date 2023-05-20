@@ -1,6 +1,5 @@
 use std::thread;
 use std::sync::mpsc;
-
 use std::sync::mpsc::Sender;
 static mut MESSAGE_BUFFER:[i16;511] = [0;511];
 static mut TOKEN : Vec<&i16> = Vec::new();
