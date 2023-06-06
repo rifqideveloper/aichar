@@ -1,7 +1,10 @@
 #![feature(const_trait_impl)]
 use std::thread;
 use std::sync::mpsc;
+<<<<<<< HEAD
 use std::thread::JoinHandle;
+=======
+>>>>>>> 68b8235e9f8befc241e2465061c0ab2104bc3b34
 use std::sync::mpsc::Sender;
 use std::time::{Duration, SystemTime};
 use std::f32::consts::E;
