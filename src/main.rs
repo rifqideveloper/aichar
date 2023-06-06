@@ -1,156 +1,95 @@
+#![feature(const_trait_impl)]
 use std::thread;
 use std::sync::mpsc;
-
+use std::thread::JoinHandle;
 use std::sync::mpsc::Sender;
-static mut MESSAGE_BUFFER:[i16;511] = [0;511];
-static mut TOKEN : Vec<&i16> = Vec::new();
-static mut INPUT : Vec<Vec<&i16>> = Vec::new();
-static mut MATRIX_2_D : Vec<Vec<i16>> = Vec::new();
-static mut NEURON_CHANNEL :Vec<(Sender<Option<f32>>, std::sync::mpsc::Receiver<Option<f32>>)>= Vec::new();
-fn message_buffer_gen() {
-	for i in 0..511 {
-		unsafe {
-			MESSAGE_BUFFER[i] = i as i16 - 255
-		}
-	}
+use std::time::{Duration, SystemTime};
+use std::f32::consts::E;
+//static mut BIASE  : Vec<f32> = Vec::new();
+static mut WEIGHT : Vec<f32> = Vec::new();
+static mut INPUT : [Vec<f32>;3] = [Vec::new(),Vec::new(),Vec::new()];
+static mut tr : Vec<JoinHandle<()>> = Vec::new();
+fn sigmoy(x:f32) -> f32 {
+	1.0 / (1.0 + E.powf(-x))
 }
-fn neuron_input(msg:usize,send:Vec<usize>,weight:f32,biase:f32) -> Option<f32>{
-	
-	while true {
-		if let Some(msg) = unsafe{NEURON_CHANNEL[msg].1.recv().unwrap()} {
-			for i in &send {
-				unsafe {
-					NEURON_CHANNEL[*i].0.send(Some(
-						msg  * weight + biase
-					)).unwrap()
-				}
-			}
-		} else {
-			for i in send {
-				unsafe {
-					NEURON_CHANNEL[i].0.send(None).unwrap()
-				}
-			}
-			return None
-		}
-	}
-	
-	return None
-}
-fn neuron_hidden(msg:usize,send:Vec<usize>,weight:f32) -> Option<f32>{
-	while true {
-		if let Some(msg) = unsafe{NEURON_CHANNEL[msg].1.recv().unwrap()} {
-			for i in &send {
-				unsafe {
-					NEURON_CHANNEL[*i].0.send(Some(
-						msg  * weight 
-					)).unwrap()
-				}
-			}
-		} else {
-			for i in send {
-				unsafe {
-					NEURON_CHANNEL[i].0.send(None).unwrap()
-				}
-			}
-			return None
-		}
-	}
-	return None
-}
-fn neuron_output(msg:usize,biase:f32) -> Option<f32>{
-	let mut v = Vec::new();
-	while true {
-		if let Some(msg) = unsafe{NEURON_CHANNEL[msg].1.recv().unwrap()} {
-			v.push(msg);
-		} else {
-			return Some(v.iter().sum::<f32>() - biase );
-		}
-	}
-	return None
-}
-fn matrix(input:Vec<f32>,hidden:usize,out:usize) -> (usize,usize,Vec<f32>) {
-	let mut x = input.len() + hidden + out ;
-	let mut tr = Vec::with_capacity(x);
+fn matrix(input:&[f32],hidden:&[(f32,f32/*biase*/,&[(usize,usize)],bool)],output:(usize,&[f32])) {
 	unsafe {
-		NEURON_CHANNEL.clear();
-		for i in 0..x {
-			NEURON_CHANNEL.push(mpsc::channel::<Option<f32>>());
-			unsafe{
-				if i < input.len() {
-					NEURON_CHANNEL[i].0.send(Some( input[i] as f32 )).unwrap();
-				}
+		INPUT[0] = Vec::from(input);
+		INPUT[1].clear();
+		for i in 0..hidden.len() {
+			if WEIGHT.len() == i {
+				WEIGHT.push(hidden[i].0);
+			} else {
+				WEIGHT[i] = hidden[i].0;
 			}
-			NEURON_CHANNEL[i].0.send(None).unwrap();
-		}
-	}
-	
-	x = input.len() + hidden;
-	for i in 0..input.len() {
-		let msg : usize = i;
-		let mut send : Vec<usize>= Vec::new();
-		for ii in input.len()..x {
-			send.push(ii)
-		}
-		let thread_join_handle = thread::spawn(move || {
+			INPUT[1].push(hidden[i].1);
 			
-			neuron_input(msg,send,-34.4,1.14)
+			let v = Vec::from(hidden[i].2);
+			if hidden[i].3 {
+				tr.push(thread::spawn(move || {
+					for x in v.iter() {
+						while !tr[x.1].is_finished() {}
+						INPUT[1][i] += INPUT[x.0][x.1] * WEIGHT[i];
+					}
+					INPUT[1][i] = sigmoy(INPUT[1][i]);
+				}));
+			} else {
+				tr.push(thread::spawn(move || {
+					for x in v.iter() {
+						INPUT[1][i] += INPUT[x.0][x.1] * WEIGHT[i];
+					}
+					INPUT[1][i] = sigmoy(INPUT[1][i]);
+				}));
+			}
 			
-		});
-		tr.push(thread_join_handle);
+		} 
 		
-	}
-	
-	let cc = x;
-	x += out;
-	for i in cc..x {
-		let msg : usize= i;
-		let mut send : Vec<usize>= Vec::new();
-		for i in 0..out {
-			unsafe { send.push(NEURON_CHANNEL.len()-(i + 1)) }
+		INPUT[2] = Vec::from(output.1);
+		
+		for thread_ in output.0..tr.len() {
+			tr.push(thread::spawn(move || {
+				while !tr[thread_].is_finished() {}
+				for i in 0..INPUT[2].len() {
+					INPUT[2][i] += INPUT[1][thread_] ;
+				}
+			}));
 		}
-		let thread_join_handle = thread::spawn(move || {
-			neuron_hidden(msg,send,0f32)
-		});
-		tr.push(thread_join_handle)
-	}
-	
-	for i in 0..out {
-		let msg : usize= unsafe { NEURON_CHANNEL.len()-(i + 1) };
-		let thread_join_handle = thread::spawn(move || {
-			neuron_output(msg,0f32)
-		});
-		tr.push(thread_join_handle)
-	}
-	let mut output : Vec<f32> = Vec::new();
-	for thread_join_handle in tr {
-		if let Some(output_n) = thread_join_handle.join().unwrap() {
-			output.push(output_n)
+		for i in 0..output.1.len() {
+			let indx = output.1.len() - 1 - i;
+			tr.pop().unwrap().join().unwrap() ;
+			INPUT[2][indx] = sigmoy(INPUT[2][indx]);
 		}
+		tr.clear();
 	}
-	println!("out:{:#?}",output);
-	return (hidden,out,output)
-}
-fn tokenize(strs:String) {
-	
-	for strs in strs.split(" ") {
-		for i in strs.as_bytes() {
-			unsafe{TOKEN.push(
-				&MESSAGE_BUFFER[(*i as usize) + 255]
-			)}
-		}
-		unsafe {
-			INPUT.push(TOKEN.clone());
-			TOKEN.clear();
-		}
-	}
-	
 }
 fn main() {
-	message_buffer_gen();
-    //println!("BUFFER{:?}",unsafe{ MESSAGE_BUFFER});
-	tokenize("hallo".to_string());
-	//println!("TOKEN{:?}",unsafe{&TOKEN});
-	//println!("INPUT{:?}",unsafe{&INPUT});
-	matrix(Vec::from([12f32,24f32]),2,3);
+	unsafe {
+		let now = SystemTime::now();
+		let imp : &[f32] = &[1.];
+		let neuron : &[(f32,f32,&[(usize,usize)],bool)] = &[
+					(1.,1.,&[(0,0)] ,false),(1.,1.,&[(0,0)] ,false),(1.,1.,&[(0,0)],false)
+					,(1.,1.,&[(1,0),(1,1),(1,2)] ,true)
+		];
+		let out : (usize,&[f32]) = (3,&[0.,0.]);
+		for _ in 0..1000 {
+			matrix(
+				imp,
+				neuron,
+				out
+			);
+			println!("{:?}",INPUT);
+			
+		}
+		match now.elapsed() {
+			Ok(elapsed) => {
+					
+				println!(" time :{}", elapsed.as_millis());
+			}
+			Err(e) => {
+				// an error occurred!
+				println!("Error: {e:?}");
+			}
+		}
+	}
+    
 }
