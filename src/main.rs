@@ -193,9 +193,16 @@ Neuron <{I},{HR},{HL},{WE},{OU}>  where LaneCount<I>: SupportedLaneCount,LaneCou
 }
 fn main() {
     dioxus_desktop::launch(dioxus_machina);
+	//dioxus_web::launch(webApp);
 }
 
-
+fn webApp(cx: Scope) -> Element {
+    cx.render(rsx! {
+        div {
+            "not ready yet"
+        }
+    })
+}
 fn dioxus_machina(cx: Scope) -> Element {
 	let machine = use_ref(cx, || Neuron::<1,2,2,1,1>::new("") );
 	render!{
