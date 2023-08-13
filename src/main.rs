@@ -733,6 +733,7 @@ mod tests {
 	}
 	#[test]
 	fn save_unique() {
+		
 		let mut machine :Neuron<1,2,2,1,1>= Neuron::new("");
 			machine.str_parse("halo my name is ? ".to_string());
 			machine.save_sentence("testing",Vec::from(["halo".to_string(),"my".to_string(),"name".to_string(),"is".to_string(),"?".to_string()]) ).unwrap();
@@ -740,6 +741,7 @@ mod tests {
 			assert_eq!( machine.sentence_to_str( machine.load_sentence_from_file("testing") ),"halo my name is ? ".to_string());
 	}
 	fn download() { 
+	
 		let mut machine :Neuron<1,2,2,1,1>= Neuron::new("");
 			machine.download_words("https://rifqideveloper.github.io/aichar_train_data/rawwords");
 		assert_eq!( machine.token[0].0 , "halo".to_string() ) ;
