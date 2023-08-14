@@ -245,8 +245,27 @@ impl Neuron {
 			}
 		).collect()
 	}
+	pub fn koordinat_to_str(koor:&[f32,f32,f32,f32]),buf:&mut String)  {
+		
+	}
 	pub fn dialog_str(&mut self,text:Arc<[usize]>) -> String{
-		let dialog = self.indexs_to_str(text);
+		let mut dialog = "".to_string();
+		
+		let mode : f32 = 0.0;
+		
+		text.iter().map(|index|{
+			&self.token[indexs]
+		}).map(|koor|{
+			self.matrix.0[0] = mode;
+			self.matrix.0[1] = koor.1;
+			self.matrix.0[2] = koor.2;
+			self.matrix.0[3] = koor.3;
+			self.run();
+			&self.matrix.2
+		}).for_each(|koordinat|{
+			self.koordinat_to_str(koordinat,&mut dialog)
+		});
+		
 		
 		dialog
 	}
