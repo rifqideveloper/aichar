@@ -33,7 +33,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       with:
           files: |
-            target/release/PROJECT_NAME_amd64
+            target/release/aichar.exe
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
