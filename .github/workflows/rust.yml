@@ -1,8 +1,7 @@
 name: Rust
 
 on:
-  release:
-    types: [created]
+  
   push:
     branches: [ "main" ]
   pull_request:
@@ -12,93 +11,30 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-pc-windows-gnu
-            archive: zip
-          - target: x86_64-unknown-linux-musl
-            archive: tar.gz tar.xz tar.zst
-          - target: x86_64-apple-darwin
-            archive: zip
-    steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@v1.4.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: ${{ matrix.archive }}
-          
+  
   build:
 
-    runs-on: ubuntu-latest
-    strategy:
-          matrix:
-            toolchain:
-              - stable
-              - beta
-              - nightly
-    steps:
-    
-    - uses: actions/checkout@v3
-    - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-    - name: Run tests
-      run: cargo test --verbose
-  build-win:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
+    - uses: actions/checkout@v3
+    - name: Install latest rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
           toolchain: nightly
           default: true
           override: true
 
-      - name: Build
-        run: cargo build --all --release
+    - name: Build
+      run: cargo build --all --release && strip target/release/aichar.exe && mv target/release/aichar.exe target/release/aichar.exe
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: target/release/windows64
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-mac:
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          target: x86_64-apple-darwin
-          default: true
-          override: true
-
-      - name: Build for mac
-        run: cargo build --all --release && strip target/release/PROJECT_NAME && mv target/release/PROJECT_NAME target/release/PROJECT_NAME_darwin
-
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
           files: |
-            target/release/aichar
-        env:
+            target/release/aichar.exe
+      env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
