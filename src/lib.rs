@@ -234,7 +234,6 @@ pub struct neuron_network<const I: usize,const HR: usize,const HL: usize,const W
 	pub fn get_loss_transfomer<const gradian_desent:gradian_desent_type>(&mut self,expected:[f64;HR]) -> f64{
 		for i in 0..HR {
 			self.matrix.0[0][i] -= expected[i]
-			//delta[i] = self.matrix.0[0][i] - expected[i]
 		}
 		
 		let mut sum_error : f64 = 0.0 ;
@@ -429,19 +428,19 @@ pub struct neuron_network<const I: usize,const HR: usize,const HL: usize,const W
 	pub fn save(&self,name:&str,weight:&([[f64;I];HR],[[[f64;HR];HR];WE],[[f64;HR];OU]),bias:&([[f64;HR];HL],[f64;OU])) {
 		if !self.need_update{return}
 		if let Ok(mut file) = File::create(&format!("{name}.weight.0")) {
-			let encoded: Vec<u8> = bincode::serialize(&weight.0.iter().map(|i| Vec::from(i)).collect::<Vec<Vec<f64>>>()).unwrap();
+			let encoded: Vec<u8> = bincode::serialize(&weight.0.iter().map(|i| Vec::from(*i)).collect::<Vec<Vec<f64>>>()).unwrap();
 				file.write_all(&encoded).unwrap()
 		}
 		if let Ok(mut file) = File::create(&format!("{name}.weight.1")) {
-			let encoded: Vec<u8> = bincode::serialize(&weight.1.iter().map(|i| i.iter().map(|i| Vec::from(i) ).collect() ).collect::<Vec<Vec<Vec<f64>>>>()).unwrap();
+			let encoded: Vec<u8> = bincode::serialize(&weight.1.iter().map(|i| i.iter().map(|i| Vec::from(*i) ).collect() ).collect::<Vec<Vec<Vec<f64>>>>()).unwrap();
 				file.write_all(&encoded).unwrap()
 		}
 		if let Ok(mut file) = File::create(&format!("{name}.weight.2")) {
-			let encoded: Vec<u8> = bincode::serialize(&weight.2.iter().map(|i| Vec::from(i) ).collect::<Vec<Vec<f64>>>()).unwrap();
+			let encoded: Vec<u8> = bincode::serialize(&weight.2.iter().map(|i| Vec::from(*i) ).collect::<Vec<Vec<f64>>>()).unwrap();
 				file.write_all(&encoded).unwrap()
 		}
 		if let Ok(mut file) = File::create(&format!("{name}.bias.0")) {
-			let encoded: Vec<u8> = bincode::serialize(&bias.0.iter().map(|i| Vec::from(i)).collect::<Vec<Vec<f64>>>()).unwrap();
+			let encoded: Vec<u8> = bincode::serialize(&bias.0.iter().map(|i| Vec::from(*i)).collect::<Vec<Vec<f64>>>()).unwrap();
 				file.write_all(&encoded).unwrap()
 		}
 		if let Ok(mut file) = File::create(&format!("{name}.bias.1")) {
@@ -873,7 +872,7 @@ pub struct Transformer<const I: usize,const HR: usize,const HL: usize,const WE: 
 						
 						//println!("{:?}",n.bias);
 						
-						neuron_to_enbed.send(n.matrix.0[0]);
+						let _ = neuron_to_enbed.send(n.matrix.0[0]);
 						//print!("test");
 						if let Some(target) = target {
 							let test = find_bigger_number_in_array(&n.matrix.0[0]);
@@ -896,7 +895,7 @@ pub struct Transformer<const I: usize,const HR: usize,const HL: usize,const WE: 
 	}
 }impl <const I: usize,const HR: usize,const HL: usize,const WE: usize,const MAX_OUTPUT:usize> Drop for Transformer <{I},{HR},{HL},{WE},{MAX_OUTPUT}>{
 	fn drop(&mut self){
-		self.input.send((None,None));
+		let _ = self.input.send((None,None));
 		self.thread_join_neuron.take().unwrap().join().unwrap();
 		self.thread_join_query_value_key.take().unwrap().join().unwrap();
 		self.thread_join_transformer_enbeding.take().unwrap().join().unwrap();
